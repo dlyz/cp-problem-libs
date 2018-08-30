@@ -1,0 +1,38 @@
+{
+  "environments": [
+    {
+      "BuildRoot": "${workspaceRoot}/build/${name}",
+      "InstallRoot": "${workspaceRoot}/install/${name}",
+      "BuildCmd": "-v"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "x86-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [
+        "msvc_x86"
+      ],
+      "buildRoot": "${env.BuildRoot}",
+      "installRoot": "${env.InstallRoot}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "${env.BuildCmd}",
+      "ctestCommandArgs": ""
+    },
+
+    {
+      "name": "x86-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "inheritEnvironments": [
+        "msvc_x86"
+      ],
+      "buildRoot": "${env.BuildRoot}",
+      "installRoot": "${env.InstallRoot}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "${env.BuildCmd}",
+      "ctestCommandArgs": ""
+    }
+  ]
+}
