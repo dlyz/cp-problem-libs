@@ -1,0 +1,1 @@
+powershell -executionpolicy remotesigned -File "./create_vs_template.ps1"
