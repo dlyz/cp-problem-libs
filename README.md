@@ -1,5 +1,5 @@
 # cp-problem-libs
-Repository with libs for problem making
+Repository with libs for problem making.
 
 ## testlib
 
