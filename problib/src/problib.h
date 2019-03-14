@@ -1,6 +1,6 @@
 #ifndef _PROBLIB_H_
 #define _PROBLIB_H_
-#define _PROBLIB_H_VER_ "0.7"
+#define _PROBLIB_H_VER_ "0.8"
 
 #include <map>
 #include <string>
@@ -16,12 +16,6 @@
 
 namespace problib
 {
-	template<typename TTest, typename TValue = void>
-	using enable_if_integral_t = std::enable_if_t<std::is_integral_v<TTest>, TValue>;
-
-	template<typename TTest>
-	using result_if_integral_t = enable_if_integral_t<TTest, TTest>;
-
 	namespace str
 	{
 		template<typename T>
@@ -31,20 +25,39 @@ namespace problib
 			oss << value;
 			return oss.str();
 		}
+			   
+		template<typename T>
+		bool try_parse(const std::string& s, T& val)
+		{
+			auto iss = std::istringstream(s);
+			iss >> val;
+			return !!iss;
+		}
+
+		template<typename T>
+		bool try_parse(std::string_view s, T& val)
+		{
+			return try_parse(std::string(s), val);
+		}
 
 		template<typename T>
 		T parse(const std::string& s)
 		{
-			auto iss = std::istringstream(s);
-			T res;
-			iss >> res;
-			return res;
+			T val;
+			if (!try_parse(s, val))
+			{
+				throw std::invalid_argument("parsing failed");
+			}
+			return val;
 		}
+
 		template<typename T>
 		T parse(std::string_view s)
 		{
 			return parse<T>(std::string(s));
 		}
+
+
 
 		std::vector<std::string_view> split(
 			std::string_view s,
@@ -73,8 +86,18 @@ namespace problib
 			return res;
 		}
 
+		namespace impl
+		{
+			struct char_or_sv
+			{
+				std::string_view sv;
+				operator std::string_view() const { return sv; }
+				operator char() const { return sv.front(); }
+			};
+		}
+
 		template<typename TPred>
-		std::vector<std::string_view> split_char_cond(
+		std::vector<std::string_view> split_if(
 			std::string_view s,
 			TPred pred,
 			bool includeEmpty = false
@@ -84,7 +107,7 @@ namespace problib
 			size_t from = 0;
 			for (size_t i = 0; i < s.size(); ++i)
 			{
-				if (pred(s[i]))
+				if (pred(impl::char_or_sv{ s.substr(i) }))
 				{
 					if (from < i || includeEmpty)
 					{
@@ -97,16 +120,18 @@ namespace problib
 			return res;
 		}
 
-		void trim(std::string_view& str)
+		std::string_view trim(std::string_view str)
 		{
 			while (!str.empty() && isspace(str.front())) str.remove_prefix(1);
 			while (!str.empty() && isspace(str.back())) str.remove_suffix(1);
+			return str;
 		}
 
 		bool starts_with(std::string_view str, std::string_view prefix)
 		{
 			return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
 		}
+
 		bool ends_with(std::string_view str, std::string_view suffix)
 		{
 			return str.size() >= suffix.size() && str.substr(str.size() - suffix.size()) == suffix;
@@ -160,13 +185,23 @@ namespace problib
 		return std::min<T>(upperBound, std::max<T>(lowerBound, value));
 	}
 
-	template<typename T>
-	result_if_integral_t<T> pow(T x, T y)
+	template<typename T, typename U>
+	std::enable_if_t < std::is_integral<T>::value, T > pow(T x, U y)
 	{
 		if (!y) return 1;
 		T p = Pow(x, y >> 1);
 		p *= p;
 		if (y & 1) p *= x;
+		return p;
+	}
+
+	template<typename T, typename U>
+	std::enable_if_t < std::is_integral<T>::value, T > pow_mod(T x, U y, T m)
+	{
+		if (!y) return 1;
+		T p = Pow(x, y >> 1);
+		p = p * p % m;
+		if (y & 1) p = p * x % m;
 		return p;
 	}
 
@@ -182,9 +217,10 @@ namespace problib
 
 
 		template<typename TIt>
-		std::ostream& operator <<(std::ostream& out, collection_printer<TIt> printer)
+		std::ostream& operator <<(std::ostream& out, const collection_printer<TIt>& printer)
 		{
 			auto cur = printer.first;
+			if (cur == printer.last) return out;
 			out << *cur;
 			for (++cur; cur != printer.last; ++cur) out << printer.separator << *cur;
 			return out;			
@@ -198,6 +234,13 @@ namespace problib
 		return impl::collection_printer<TIt> { first, last, separator };
 	}
 
+	template<typename TContainer>
+	auto make_printer(const TContainer& c, std::string_view separator = " ")
+	{
+		using std::begin;
+		using std::end;
+		return make_printer(begin(c), end(c), separator);
+	}
 
 #pragma region ranges
 
@@ -223,6 +266,7 @@ namespace problib
 		// for floating range: [form; to) and [lowerBound; upperBound)
 		value_type get_rnd(value_type lowerBound, value_type upperBound) const
 		{
+			assert(lowerBound <= upperBound);
 			return rnd.next(
 				bound_value(lowerBound, upperBound, from),
 				bound_value(lowerBound, upperBound, to)
@@ -244,7 +288,7 @@ namespace problib
 	enum class range_random_mode
 	{
 		uniform_by_length,
-		uniform_by_ranges,
+		uniform_by_count,
 	};
 
 	struct range_array_opts
@@ -281,6 +325,7 @@ namespace problib
 		const range_type& operator[](size_t index) const { return _vals[index]; }
 		range_type& operator[](size_t index) { return _vals[index]; }
 
+		template<typename = std::enable_if_t < std::is_integral<value_type>{} >>
 		std::vector<value_type> get_all_values() const
 		{
 			auto result = std::vector<value_type>();
@@ -308,8 +353,8 @@ namespace problib
 
 		value_type _get_rnd_uniform_by_values() const;
 		value_type _get_rnd_in_range_uniform_by_values(value_type minVal, value_type maxVal) const;
-		value_type _get_rnd_uniform_by_ranges() const;
-		value_type _get_rnd_in_range_uniform_by_ranges(value_type minVal, value_type maxVal) const;
+		value_type _get_rnd_uniform_by_count() const;
+		value_type _get_rnd_in_range_uniform_by_count(value_type minVal, value_type maxVal) const;
 	};
 
 
@@ -324,8 +369,8 @@ namespace problib
 		if (_vals.size() == 1) return _vals[0].get_rnd();
 		switch (_opts.random_mode)
 		{
-		case range_random_mode::uniform_by_ranges:
-			return _get_rnd_uniform_by_ranges();
+		case range_random_mode::uniform_by_count:
+			return _get_rnd_uniform_by_count();
 		case range_random_mode::uniform_by_length:
 			return _get_rnd_uniform_by_values();
 		default:
@@ -341,8 +386,8 @@ namespace problib
 		if (_vals.size() == 1) return _vals[0].get_rnd(lowerBound, upperBound);
 		switch (_opts.random_mode)
 		{
-		case range_random_mode::uniform_by_ranges:
-			return _get_rnd_in_range_uniform_by_ranges(lowerBound, upperBound);
+		case range_random_mode::uniform_by_count:
+			return _get_rnd_in_range_uniform_by_count(lowerBound, upperBound);
 		case range_random_mode::uniform_by_length:
 			return _get_rnd_in_range_uniform_by_values(lowerBound, upperBound);
 		default:
@@ -352,13 +397,13 @@ namespace problib
 	}
 
 	template <typename T>
-	T range_array<T>::_get_rnd_uniform_by_ranges() const
+	T range_array<T>::_get_rnd_uniform_by_count() const
 	{
 		return _vals[rnd.next(_vals.size())].get_rnd();
 	}
 
 	template <typename T>
-	T range_array<T>::_get_rnd_in_range_uniform_by_ranges(value_type minVal, value_type maxVal) const
+	T range_array<T>::_get_rnd_in_range_uniform_by_count(value_type minVal, value_type maxVal) const
 	{
 		return _vals[rnd.next(_vals.size())].get_rnd(minVal, maxVal);
 	}
@@ -426,7 +471,7 @@ namespace problib
 
 		struct prefixes
 		{
-			std::string rnd_mode_uniform_by_ranges = "!";
+			std::string rnd_mode_uniform_by_count = "!";
 		};
 
 		struct parsing_options
@@ -439,7 +484,7 @@ namespace problib
 		namespace impl_arg_parsing
 		{
 			template<typename T>
-			std::enable_if_t<std::is_integral_v<T>, T> normalize_range_bound(const T& value, int sign)
+			std::enable_if_t < std::is_integral<T>::value, T > normalize_range_bound(const T& value, int sign)
 			{
 				if (sign < 0) return value - 1;
 				if (sign > 0) return value + 1;
@@ -447,14 +492,14 @@ namespace problib
 			}
 
 			template<typename T>
-			std::enable_if_t<!std::is_integral_v<T>, T> normalize_range_bound(const T& value, int sign)
+			std::enable_if_t < !std::is_integral<T>::value, T > normalize_range_bound(const T& value, int sign)
 			{
 				return value;
 			}
 
 
 			template<typename T>
-			std::tuple<range<T>, bool> try_parse_range_from_parts(std::string_view left, std::string_view right, const brackets& brackets)
+			std::pair<range<T>, bool> try_parse_range_from_parts(std::string_view left, std::string_view right, const brackets& brackets)
 			{
 				bool isOpenInclusive = str::try_remove_prefix(left, brackets.range_open_inclusive);
 				bool isOpenExclusive = !isOpenInclusive && str::try_remove_prefix(left, brackets.range_open_exclusive);
@@ -466,13 +511,13 @@ namespace problib
 					auto from = str::parse<T>(left);
 					auto to = str::parse<T>(right);
 
-					return std::make_tuple(make_range(
+					return std::make_pair(make_range(
 						normalize_range_bound(from, isOpenInclusive ? 0 : 1),
 						normalize_range_bound(to, isCloseInclusive ? 0 : -1)
 					), true);
 				}
 
-				return std::make_tuple(range<T>(), false);
+				return std::make_pair(range<T>(), false);
 			}
 
 			template<typename T>
@@ -489,9 +534,9 @@ namespace problib
 
 				range_array_opts rnd_opts;
 
-				if (str::try_remove_prefix(current, options.prefixes.rnd_mode_uniform_by_ranges))
+				if (str::try_remove_prefix(current, options.prefixes.rnd_mode_uniform_by_count))
 				{
-					rnd_opts.random_mode = range_random_mode::uniform_by_ranges;
+					rnd_opts.random_mode = range_random_mode::uniform_by_count;
 				}
 
 				str::try_remove_enclosed(current, brackets.rangeset_open, brackets.rangeset_close);
@@ -501,7 +546,7 @@ namespace problib
 				auto parts = str::split(current, options.items_separator);
 				for (auto& part : parts)
 				{
-					str::trim(part);
+					part = str::trim(part);
 				}
 
 				for (size_t i = 0; i < parts.size(); ++i)
@@ -510,7 +555,9 @@ namespace problib
 					if (i + 1 < parts.size())
 					{
 						auto next = parts[i + 1];
-						auto[rng, isRange] = try_parse_range_from_parts<T>(cur, next, brackets);
+						range<T> rng;
+						bool isRange;
+						std::tie(rng, isRange) = try_parse_range_from_parts<T>(cur, next, brackets);
 
 						if (isRange)
 						{
@@ -576,21 +623,25 @@ namespace problib
 
 		class arguments_dictionary
 		{
-			std::map<std::string, argument_value> _dict;
+		public:
+			using map_type = std::map<std::string, argument_value, std::less<>>;
+
+		private:
+			map_type _dict;
 
 		public:
-			void assign(std::map<std::string, argument_value>&& values)
+			void reset(map_type&& values)
 			{
 				_dict = std::move(values);
 			}
 
-			const argument_value& operator[](const std::string &key) const
+			const argument_value& operator[](const std::string_view &key) const
 			{
 				if (has(key)) return _dict.find(key)->second;
 				throw std::runtime_error("argument not found");
 			}
 
-			bool has(const std::string &key) const
+			bool has(const std::string_view &key) const
 			{
 				return _dict.find(key) != _dict.end();
 			}
@@ -608,33 +659,34 @@ namespace problib
 
 		std::vector<std::string_view> split_args(std::string_view args)
 		{
-			return str::split_char_cond(args, &isspace);
+			return str::split_if(args, &isspace);
 		}
 
-		std::tuple<std::string_view, std::string_view> parse_arg(std::string_view key_value)
+		std::pair<std::string_view, std::string_view> parse_arg(std::string_view key_value)
 		{
 			size_t eqind = key_value.find_first_of('=');
 
 			if (eqind == std::string::npos)
 			{
-				return std::make_tuple(key_value, "");
+				return std::make_pair(key_value, std::string_view(""));
 			}
 			else
 			{
-				return std::make_tuple(
+				return std::make_pair(
 					key_value.substr(0, eqind),
 					key_value.substr(eqind + 1)
 				);
 			}
 		}
 
-		std::map<std::string, argument_value> make_args_map(const std::vector<std::string_view>& args, const arguments::parsing_options& parsingOpts)
+		arguments_dictionary::map_type make_args_map(const std::vector<std::string_view>& args, const arguments::parsing_options& parsingOpts)
 		{
-			std::map<std::string, argument_value> values;
+			arguments_dictionary::map_type values;
 			for (size_t i = 0; i < args.size(); ++i)
 			{
 				auto str = args[i];
-				auto[key, value] = parse_arg(str);
+				std::string_view key, value;
+				std::tie(key, value) = parse_arg(str);
 				values.emplace(key, argument_value(value, parsingOpts));
 			}
 			return values;
@@ -650,11 +702,11 @@ namespace problib
 
 			void init(const std::vector<std::string_view>& args)
 			{
-				if (find(args.begin(), args.end(), "poly_stress") != args.end())
+				if (find(args.begin(), args.end(), "polygon_stress") != args.end())
 				{
 					arguments::set_alternative_inclusive_brackets(_parsingOpts.brackets);
 				}
-				assign(make_args_map(args, _parsingOpts));
+				reset(make_args_map(args, _parsingOpts));
 			}
 
 			void init(int argc, args_t argv)

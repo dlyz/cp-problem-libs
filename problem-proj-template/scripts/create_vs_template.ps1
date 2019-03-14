@@ -10,4 +10,4 @@ $targetDirPath = "../build"
 
 New-Item $targetDirPath -ItemType directory -Force
 
-Compress-Archive -Path ("../src/*", "../vs/*") -DestinationPath ($targetDirPath + "/" + $templateName + ".zip") -Force
+Compress-Archive -Path ("../src/*", "../vs/*", "../../problib/src/problib.h", "../../problib/external/testlib/testlib.h") -DestinationPath ($targetDirPath + "/" + $templateName + ".zip") -Force

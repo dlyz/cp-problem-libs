@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <VSTemplate Version="3.0.0" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005" Type="Project">
-  <TemplateData>
-    <Name>Contest Problem 2.0.8</Name>
-    <Description>Contest problem with testlib and problib</Description>
-    <ProjectType>VC</ProjectType>
-    <ProjectSubType>CMake</ProjectSubType>
-    <CreateNewFolder>true</CreateNewFolder>
-    <DefaultName>ContestProblem</DefaultName>
-    <ProvideDefaultName>true</ProvideDefaultName>
-    <LocationField>Enabled</LocationField>
-    <EnableLocationBrowseButton>true</EnableLocationBrowseButton>
-    <Icon>__TemplateIcon.png</Icon>
-  </TemplateData>
-  <TemplateContent>
-    <Project TargetFileName="$projectname$.vcxproj" File="Project.vcxproj" ReplaceParameters="true">
-      <ProjectItem ReplaceParameters="false" TargetFileName="$projectname$.vcxproj.filters">Project.vcxproj.filters</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName=".gitignore">gitignore.txt</ProjectItem>	  
-	  
-      <ProjectItem ReplaceParameters="false" TargetFileName="checker.cpp">checker.cpp</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="gen-rnd.cpp">gen-rnd.cpp</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="solution.cpp">solution.cpp</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="validator.cpp">validator.cpp</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="problem.h">problem.h</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="problib.h">problib.h</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="testlib.h">testlib.h</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="gen-script.txt">gen-script.txt</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="answer.txt">answer.txt</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="input.txt">input.txt</ProjectItem>
-      <ProjectItem ReplaceParameters="false" TargetFileName="output.txt">output.txt</ProjectItem>
-    </Project>
-  </TemplateContent>
+	<TemplateData>
+		<Name>Contest Problem 2.0.9</Name>
+		<Description>Contest problem with testlib and problib</Description>
+		<ProjectType>VC</ProjectType>
+		<ProjectSubType>CMake</ProjectSubType>
+		<CreateNewFolder>true</CreateNewFolder>
+		<DefaultName>ContestProblem</DefaultName>
+		<ProvideDefaultName>true</ProvideDefaultName>
+		<LocationField>Enabled</LocationField>
+		<EnableLocationBrowseButton>true</EnableLocationBrowseButton>
+		<Icon>__TemplateIcon.png</Icon>
+	</TemplateData>
+	<TemplateContent>
+		<Project TargetFileName="$projectname$.vcxproj" File="Project.vcxproj" ReplaceParameters="true">
+			<ProjectItem ReplaceParameters="false" TargetFileName="$projectname$.vcxproj.filters">Project.vcxproj.filters</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName=".gitignore">gitignore.txt</ProjectItem>	  
+		
+			<ProjectItem ReplaceParameters="false" TargetFileName="checker.cpp">checker.cpp</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="gen-rnd.cpp">gen-rnd.cpp</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="solution.cpp">solution.cpp</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="validator.cpp">validator.cpp</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="problem.h">problem.h</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="problib.h">problib.h</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="testlib.h">testlib.h</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="gen-script.txt">gen-script.txt</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="answer.txt">answer.txt</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="input.txt">input.txt</ProjectItem>
+			<ProjectItem ReplaceParameters="false" TargetFileName="output.txt">output.txt</ProjectItem>
+		</Project>
+	</TemplateContent>
 </VSTemplate>
