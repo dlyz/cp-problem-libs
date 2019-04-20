@@ -1,10 +1,11 @@
 #ifndef _PROBLIB_H_
 #define _PROBLIB_H_
-#define _PROBLIB_H_VER_ "0.8"
+#define _PROBLIB_H_VER_ "0.10"
 
 #include <map>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <sstream>
 #include <cctype>
 #include <cassert>
@@ -19,13 +20,13 @@ namespace problib
 	namespace str
 	{
 		template<typename T>
-		const std::string to_string(const T &value)
+		const std::string to_string(const T& value)
 		{
 			std::ostringstream oss;
 			oss << value;
 			return oss.str();
 		}
-			   
+
 		template<typename T>
 		bool try_parse(const std::string& s, T& val)
 		{
@@ -143,7 +144,7 @@ namespace problib
 		}
 
 
-		bool try_remove_prefix(std::string_view& str, std::string_view prefix)
+		bool try_remove_prefix(std::string_view & str, std::string_view prefix)
 		{
 			if (starts_with(str, prefix))
 			{
@@ -153,7 +154,7 @@ namespace problib
 			return false;
 		}
 
-		bool try_remove_suffix(std::string_view& str, std::string_view suffix)
+		bool try_remove_suffix(std::string_view & str, std::string_view suffix)
 		{
 			if (ends_with(str, suffix))
 			{
@@ -163,7 +164,7 @@ namespace problib
 			return false;
 		}
 
-		bool try_remove_enclosed(std::string_view& str, std::string_view prefix, std::string_view suffix)
+		bool try_remove_enclosed(std::string_view & str, std::string_view prefix, std::string_view suffix)
 		{
 			if (enclosed_with(str, prefix, suffix))
 			{
@@ -180,7 +181,7 @@ namespace problib
 	// if value > upperBound returns upperBound.
 	// else returns value.
 	template<typename T>
-	T bound_value(T lowerBound, T upperBound, T value)
+	T bound_value(const T & lowerBound, const T & upperBound, const T & value)
 	{
 		return std::min<T>(upperBound, std::max<T>(lowerBound, value));
 	}
@@ -223,9 +224,9 @@ namespace problib
 			if (cur == printer.last) return out;
 			out << *cur;
 			for (++cur; cur != printer.last; ++cur) out << printer.separator << *cur;
-			return out;			
+			return out;
 		}
-	
+
 	}
 
 	template<typename TIt>
@@ -235,7 +236,7 @@ namespace problib
 	}
 
 	template<typename TContainer>
-	auto make_printer(const TContainer& c, std::string_view separator = " ")
+	auto make_printer(const TContainer & c, std::string_view separator = " ")
 	{
 		using std::begin;
 		using std::end;
@@ -253,6 +254,7 @@ namespace problib
 		value_type to;
 
 		range() = default;
+		range(value_type fromto) : from(fromto), to(fromto) {}
 		range(value_type from, value_type to) : from(from), to(to) {}
 
 		value_type length() const;
@@ -304,7 +306,8 @@ namespace problib
 		using range_type = range<value_type>;
 
 		range_array() = default;
-		range_array(const range_array_opts& opts) : _opts(opts) {}
+		range_array(const range_type& range) : _vals(1, range) { }
+		explicit range_array(const range_array_opts& opts) : _opts(opts) {}
 
 		range_array_opts& options() { return _opts; }
 		const range_array_opts& options() const { return _opts; }
@@ -318,7 +321,7 @@ namespace problib
 				_vals.begin(),
 				_vals.end(),
 				value_type(0),
-				[](value_type current, const range_type& val) { return current + val.length(); }
+				[](value_type current, const range_type & val) { return current + val.length(); }
 			);
 		}
 
@@ -326,7 +329,7 @@ namespace problib
 		range_type& operator[](size_t index) { return _vals[index]; }
 
 		template<typename = std::enable_if_t < std::is_integral<value_type>{} >>
-		std::vector<value_type> get_all_values() const
+			std::vector<value_type> get_all_values() const
 		{
 			auto result = std::vector<value_type>();
 			for (const auto& val : _vals)
@@ -414,7 +417,7 @@ namespace problib
 		value_type length = total_length();
 		value_type index = rnd.next(length);
 
-		for (size_t i = _vals.size() - 1; i >= 0; --i)
+		for (auto i = ptrdiff_t(_vals.size()) - 1; i >= 0; --i)
 		{
 			length -= _vals[i].length();
 			if (index >= length)
@@ -463,12 +466,6 @@ namespace problib
 			std::string rangeset_close = "}";
 		};
 
-		void set_alternative_inclusive_brackets(brackets& brackets)
-		{
-			brackets.range_open_inclusive = "<";
-			brackets.range_close_inclusive = ">";
-		}
-
 		struct prefixes
 		{
 			std::string rnd_mode_uniform_by_count = "!";
@@ -480,7 +477,7 @@ namespace problib
 			prefixes prefixes;
 			std::string items_separator = ",";
 		};
-		
+
 		namespace impl_arg_parsing
 		{
 			template<typename T>
@@ -521,7 +518,7 @@ namespace problib
 			}
 
 			template<typename T>
-			range_array<T> parse_range(std::string_view value, const parsing_options& options)
+			range_array<T> parse_range(std::string_view value, const parsing_options & options)
 			{
 				if (value.empty())
 				{
@@ -577,54 +574,114 @@ namespace problib
 		}
 
 
-		class argument_value
+		class argument_view
 		{
 		private:
-			std::string _rawValue;
-			parsing_options _opts;
+			const std::string* _rawValue;
+			const std::string& _rw() const
+			{
+				if (!_rawValue) throw std::logic_error("value not exists");
+				return *_rawValue;
+			}
 
 		public:
-			argument_value(std::string_view value, parsing_options opts = parsing_options())
-				: _rawValue(value), _opts(std::move(opts))
-			{}
-			argument_value(std::string&& value, parsing_options opts = parsing_options())
-				: _rawValue(std::move(value)), _opts(std::move(opts))
+			argument_view() : _rawValue(nullptr) {}
+
+			explicit argument_view(const std::string& value)
+				: _rawValue(&value)
 			{}
 
-			template<typename T>
-			T value() const { return str::parse<T>(_rawValue); }
+			explicit operator bool() const
+			{
+				return _rawValue;
+			}
 
 			template<typename T>
-			range_array<T> ranges() const { return ranges<T>(_opts); }
+			T value() const { return str::parse<T>(_rw()); }
+
+			template<typename T>
+			T value_or(const T& default_value) const
+			{
+				if (_rawValue)
+				{
+					return str::parse<T>(*_rawValue);
+				}
+				else
+				{
+					return default_value;
+				}
+			}
+
+			template<typename T>
+			range_array<T> ranges() const { return ranges<T>(parsing_options{}); }
+
+			template<typename T, typename U>
+			range_array<T> ranges_or(U&& default_value) const
+			{
+				return ranges_or<T>(std::forward<U>(default_value), parsing_options{});
+			}
 
 			template<typename T>
 			range_array<T> ranges(const parsing_options& opts) const
 			{
-				return impl_arg_parsing::parse_range<T>(_rawValue, opts);
+				return impl_arg_parsing::parse_range<T>(_rw(), opts);
+			}
+
+			template<typename T>
+			range_array<T> ranges_or(std::string_view default_value, const parsing_options& opts) const
+			{
+				if (_rawValue)
+				{
+					return impl_arg_parsing::parse_range<T>(*_rawValue, opts);
+				}
+				else
+				{
+					return impl_arg_parsing::parse_range<T>(default_value, opts);
+				}
+			}
+
+			template<typename T, typename U>
+			std::enable_if_t<std::is_convertible_v<U&&, range_array<T>> || std::is_convertible_v<U&&, range<T>>, range_array<T>>
+				ranges_or(U&& default_value, const parsing_options& opts) const
+			{
+				if (_rawValue)
+				{
+					return impl_arg_parsing::parse_range<T>(*_rawValue, opts);
+				}
+				else
+				{
+					return  range_array<T>(std::forward<U>(default_value));
+				}
 			}
 
 			template <typename T>
-			T bounded_value(T lowerBound, T upperBound) const
+			T bounded_value(const T& lowerBound, const T& upperBound) const
 			{
 				return bound_value(lowerBound, upperBound, value<T>());
+			}
+
+			template <typename T>
+			T bounded_value_or(const T& lowerBound, const T& upperBound, const T& default_value) const
+			{
+				return bound_value(lowerBound, upperBound, value_or<T>(default_value));
 			}
 
 #ifdef _TESTLIB_H_
 
 			std::string rnd_from_pattern() const
 			{
-				return rnd.next(_rawValue);
+				return rnd.next(_rw());
 			}
 #endif
 
 		};
 
-		template<> std::string argument_value::value() const { return _rawValue; }
+		template<> std::string argument_view::value() const { return _rw(); }
 
 		class arguments_dictionary
 		{
 		public:
-			using map_type = std::map<std::string, argument_value, std::less<>>;
+			using map_type = std::map<std::string, std::string, std::less<>>;
 
 		private:
 			map_type _dict;
@@ -635,27 +692,33 @@ namespace problib
 				_dict = std::move(values);
 			}
 
-			const argument_value& operator[](const std::string_view &key) const
+			argument_view operator[](const std::string_view& key) const
 			{
-				if (has(key)) return _dict.find(key)->second;
-				throw std::runtime_error("argument not found");
+				auto it = _dict.find(key);
+				if (it != _dict.end())
+				{
+					return argument_view(it->second);
+				}
+				else
+				{
+					return argument_view();
+				}
 			}
 
-			bool has(const std::string_view &key) const
+			bool has(const std::string_view& key) const
 			{
 				return _dict.find(key) != _dict.end();
 			}
-
 		};
 
 	}
 
-	using arguments::argument_value;
+	using arguments::argument_view;
 	using arguments::arguments_dictionary;
 
 	namespace impl
 	{
-		using args_t = const char* const[];
+		using args_t = const char* const [];
 
 		std::vector<std::string_view> split_args(std::string_view args)
 		{
@@ -679,7 +742,7 @@ namespace problib
 			}
 		}
 
-		arguments_dictionary::map_type make_args_map(const std::vector<std::string_view>& args, const arguments::parsing_options& parsingOpts)
+		arguments_dictionary::map_type make_args_map(const std::vector<std::string_view> & args)
 		{
 			arguments_dictionary::map_type values;
 			for (size_t i = 0; i < args.size(); ++i)
@@ -687,26 +750,17 @@ namespace problib
 				auto str = args[i];
 				std::string_view key, value;
 				std::tie(key, value) = parse_arg(str);
-				values.emplace(key, argument_value(value, parsingOpts));
+				values.emplace(key, value);
 			}
 			return values;
 		}
 
 		class generator_root : public arguments_dictionary
 		{
-			arguments::parsing_options _parsingOpts;
-
 		public:
-			arguments::parsing_options& parsing_options() { return _parsingOpts; }
-			const arguments::parsing_options& parsing_options() const { return _parsingOpts; }
-
 			void init(const std::vector<std::string_view>& args)
 			{
-				if (find(args.begin(), args.end(), "polygon_stress") != args.end())
-				{
-					arguments::set_alternative_inclusive_brackets(_parsingOpts.brackets);
-				}
-				reset(make_args_map(args, _parsingOpts));
+				reset(make_args_map(args));
 			}
 
 			void init(int argc, args_t argv)
@@ -727,10 +781,10 @@ namespace problib
 				init(argc, argv);
 			}
 
-			void initRegisterGen(int argc, args_t argv, const std::vector<std::string>& args)
+			void initRegisterGen(int argc, args_t argv, const std::vector<std::string> & args)
 			{
 				std::vector<const char*> nargv(argv, argv + argc);
-				std::transform(args.begin(), args.end(), std::back_inserter(nargv), [](const std::string& item) { return item.c_str(); });
+				std::transform(args.begin(), args.end(), std::back_inserter(nargv), [](const std::string & item) { return item.c_str(); });
 				initRegisterGen(nargv.size(), nargv.data());
 			}
 
